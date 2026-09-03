@@ -1,0 +1,8 @@
+{
+  "term": "202710",
+  "courses": [
+    {"subject": "COSC", "number": "411"},
+    {"subject": "COSC", "number": "421"},
+    {"subject": "COSC", "number": "482w"}
+  ]
+}

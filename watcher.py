@@ -1,27 +1,36 @@
-"""EMU seat watcher — Session 3: fetch and print seat counts for one course."""
+"""EMU seat watcher — print seat counts for the courses in courses.json."""
+
+import json
+import time
+from pathlib import Path
 
 import requests
 
 BASE = "https://bannerweb.oci.emich.edu/StudentRegistrationSsb/ssb"
-TERM = "202710"      # Fall 2026
-SUBJECT = "COSC"
-COURSE_NUMBER = "411"
 
 
-def make_session(term):
+def make_session(term, attempts=3):
     """Open a session and tell Banner which term we're looking at."""
     session = requests.Session()
     session.headers.update({
         "User-Agent": "emu-seat-watcher (student project)"
     })
-    # Banner won't return results until a term is selected on the session.
-    session.post(
-        f"{BASE}/term/search",
-        params={"mode": "search"},
-        data={"term": term},
-        timeout=20,
-    )
-    return session
+
+    # The campus network drops lookups occasionally, so retry before failing.
+    for attempt in range(1, attempts + 1):
+        try:
+            session.post(
+                f"{BASE}/term/search",
+                params={"mode": "search"},
+                data={"term": term},
+                timeout=20,
+            )
+            return session
+        except requests.exceptions.ConnectionError:
+            if attempt == attempts:
+                raise
+            print(f"Connection failed (attempt {attempt}), retrying...")
+            time.sleep(5)
 
 
 def fetch_sections(session, term, subject, course_number):
@@ -51,17 +60,22 @@ def open_seats(section):
 
 
 if __name__ == "__main__":
-    session = make_session(TERM)
-    sections = fetch_sections(session, TERM, SUBJECT, COURSE_NUMBER)
+    config = json.loads(Path("courses.json").read_text())
+    session = make_session(config["term"])
 
-    if not sections:
-        print("No sections returned — the term selection probably didn't take.")
-
-    for section in sections:
-        crn = section["courseReferenceNumber"]
-        print(
-            f"{section['subjectCourse']} CRN {crn}: "
-            f"{open_seats(section)} open "
-            f"(section {section['seatsAvailable']}, "
-            f"cross-list {section['crossListAvailable']})"
+    for course in config["courses"]:
+        sections = fetch_sections(
+            session, config["term"], course["subject"], course["number"]
         )
+
+        if not sections:
+            print(f"{course['subject']} {course['number']}: no sections found")
+
+        for section in sections:
+            print(
+                f"{section['subjectCourse']} "
+                f"CRN {section['courseReferenceNumber']}: "
+                f"{open_seats(section)} open"
+            )
+
+        time.sleep(2)
