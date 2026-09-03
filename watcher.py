@@ -9,6 +9,23 @@ import requests
 BASE = "https://bannerweb.oci.emich.edu/StudentRegistrationSsb/ssb"
 
 
+STATE_FILE = Path("state.json")
+
+
+def load_state():
+    """Read the last known seat counts. Returns an empty record on first run."""
+    if not STATE_FILE.exists():
+        return {}
+    try:
+        return json.loads(STATE_FILE.read_text())
+    except json.JSONDecodeError:
+        # A half-written file should not crash the run.
+        return {}
+
+
+def save_state(state):
+    STATE_FILE.write_text(json.dumps(state, indent=2))
+
 def make_session(term, attempts=3):
     """Open a session and tell Banner which term we're looking at."""
     session = requests.Session()
