@@ -78,21 +78,38 @@ def open_seats(section):
 
 if __name__ == "__main__":
     config = json.loads(Path("courses.json").read_text())
+    state = load_state()
     session = make_session(config["term"])
+    opened = []
 
     for course in config["courses"]:
-        sections = fetch_sections(
-            session, config["term"], course["subject"], course["number"]
-        )
+        try:
+            sections = fetch_sections(
+                session, config["term"], course["subject"], course["number"]
+            )
+        except Exception as error:
+            print(f"Failed on {course['subject']} {course['number']}: {error}")
+            continue
 
         if not sections:
             print(f"{course['subject']} {course['number']}: no sections found")
 
         for section in sections:
-            print(
-                f"{section['subjectCourse']} "
-                f"CRN {section['courseReferenceNumber']}: "
-                f"{open_seats(section)} open"
-            )
+            crn = section["courseReferenceNumber"]
+            seats = open_seats(section)
+
+            if state.get(crn, 0) == 0 and seats > 0:
+                opened.append(f"{section['subjectCourse']} CRN {crn}: {seats} seats")
+
+            state[crn] = seats
 
         time.sleep(2)
+
+    if opened:
+        print("OPENED:")
+        for line in opened:
+            print(f"  {line}")
+    else:
+        print("No change.")
+
+    save_state(state)
