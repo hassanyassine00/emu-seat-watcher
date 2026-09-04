@@ -3,7 +3,7 @@
 import json
 import time
 from pathlib import Path
-
+import os
 import requests
 
 BASE = "https://bannerweb.oci.emich.edu/StudentRegistrationSsb/ssb"
@@ -25,6 +25,16 @@ def load_state():
 
 def save_state(state):
     STATE_FILE.write_text(json.dumps(state, indent=2))
+
+WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK")
+
+
+def notify(message):
+    """Send a message. Falls back to printing if not configured."""
+    if not WEBHOOK_URL:
+        print(f"[would notify] {message}")
+        return
+    requests.post(WEBHOOK_URL, json={"content": message}, timeout=10)
 
 def make_session(term, attempts=3):
     """Open a session and tell Banner which term we're looking at."""
@@ -76,6 +86,9 @@ def open_seats(section):
     return seats
 
 
+
+
+
 if __name__ == "__main__":
     config = json.loads(Path("courses.json").read_text())
     state = load_state()
@@ -106,9 +119,7 @@ if __name__ == "__main__":
         time.sleep(2)
 
     if opened:
-        print("OPENED:")
-        for line in opened:
-            print(f"  {line}")
+        notify("Seats opened:\n" + "\n".join(opened))
     else:
         print("No change.")
 
