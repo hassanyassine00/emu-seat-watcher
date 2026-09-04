@@ -58,7 +58,19 @@ def make_session(term, attempts=3):
                 raise
             print(f"Connection failed (attempt {attempt}), retrying...")
             time.sleep(5)
+DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 
+
+def meeting_info(section):
+    """Return (days, begin, end) for a section, or None if unscheduled."""
+    meetings = section.get("meetingsFaculty") or []
+    if not meetings:
+        return None
+    mt = meetings[0].get("meetingTime") or {}
+    if not mt.get("beginTime"):
+        return None
+    days = [d[:3].upper() for d in DAY_KEYS if mt.get(d)]
+    return days, int(mt["beginTime"]), int(mt["endTime"])
 
 def fetch_sections(session, term, subject, course_number):
     """Return the list of section records for one course."""
@@ -86,6 +98,18 @@ def open_seats(section):
     return seats
 
 
+def matches_days(section, wanted):
+    info = meeting_info(section)
+    if info is None:
+        return False
+    return any(day in wanted for day in info[0])
+
+
+def matches_time(section, earliest, latest):
+    info = meeting_info(section)
+    if info is None:
+        return False
+    return info[1] >= earliest and info[2] <= latest
 
 
 
