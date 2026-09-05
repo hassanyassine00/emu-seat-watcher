@@ -7,6 +7,10 @@ from watcher import (
     fetch_sections,
     open_seats,
     meeting_info,
+    credit_hours,
+    instructor,
+    delivery,
+    location,
 )
 
 TERM = "202710"      # Fall 2026
@@ -20,6 +24,12 @@ DAY_LETTERS = {
     "Friday": "FRI",
 }
 
+def fmt_time(value):
+    """Turn 1500 into '3:00 PM'."""
+    hour, minute = divmod(value, 100)
+    suffix = "AM" if hour < 12 else "PM"
+    display = hour % 12 or 12
+    return f"{display}:{minute:02d} {suffix}"
 st.title("EMU Class Search")
 
 col1, col2 = st.columns(2)
@@ -53,7 +63,7 @@ if st.button("Search"):
             days, begin, end, when = [], None, None, "Not scheduled"
         else:
             days, begin, end = info
-            when = f"{'/'.join(days)} {begin:04d}-{end:04d}"
+            when = f"{'/'.join(days)} {fmt_time(begin)}–{fmt_time(end)}"
 
         if wanted and not any(d in wanted for d in days):
             continue
@@ -63,8 +73,12 @@ if st.button("Search"):
         rows.append({
             "CRN": section["courseReferenceNumber"],
             "Course": section["subjectCourse"],
+            "Credits": credit_hours(section),
+            "Instructor": instructor(section),
+            "Mode": delivery(section),
             "Open seats": open_seats(section),
             "Meets": when,
+            "Room": location(section),
         })
 
     if not sections:

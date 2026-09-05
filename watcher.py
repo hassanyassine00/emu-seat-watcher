@@ -89,6 +89,48 @@ def fetch_sections(session, term, subject, course_number):
     response.raise_for_status()
     return response.json().get("data", [])
 
+def credit_hours(section):
+    """Credit hours, handling fixed and variable-credit courses."""
+    fixed = section.get("creditHours")
+    if fixed is not None:
+        return str(fixed)
+    low = section.get("creditHourLow")
+    high = section.get("creditHourHigh")
+    if low is not None and high is not None and high != low:
+        return f"{low}–{high}"
+    return str(low) if low is not None else "—"
+
+
+def instructor(section):
+    for person in section.get("faculty") or []:
+        if person.get("primaryIndicator"):
+            return person.get("displayName", "—")
+    faculty = section.get("faculty") or []
+    return faculty[0].get("displayName", "—") if faculty else "Staff"
+
+
+def delivery(section):
+    info = meeting_info(section)
+    if info is None:
+        return "Online"
+    meetings = section.get("meetingsFaculty") or []
+    building = (meetings[0].get("meetingTime") or {}).get("building")
+    return "In person" if building else "Online"
+
+
+
+def location(section):
+    """Building and room, or a note when there's no physical space."""
+    meetings = section.get("meetingsFaculty") or []
+    if not meetings:
+        return "—"
+    mt = meetings[0].get("meetingTime") or {}
+    building = mt.get("buildingDescription") or mt.get("building")
+    room = mt.get("room")
+    if not building:
+        return "—"
+    return f"{building} {room}" if room else building
+
 
 def open_seats(section):
     """Seats you could actually register into, respecting cross-lists."""
