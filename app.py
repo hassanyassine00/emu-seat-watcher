@@ -3,6 +3,7 @@
 import streamlit as st
 
 from watcher import (
+    notify,
     make_session,
     fetch_sections,
     open_seats,
@@ -24,12 +25,15 @@ DAY_LETTERS = {
     "Friday": "FRI",
 }
 
+
 def fmt_time(value):
     """Turn 1500 into '3:00 PM'."""
     hour, minute = divmod(value, 100)
     suffix = "AM" if hour < 12 else "PM"
     display = hour % 12 or 12
     return f"{display}:{minute:02d} {suffix}"
+
+
 st.title("EMU Class Search")
 
 col1, col2 = st.columns(2)
@@ -41,7 +45,7 @@ earliest, latest = st.select_slider(
     "Time range",
     options=list(range(600, 2300, 100)),
     value=(600, 2200),
-    format_func=lambda t: f"{t // 100}:00",
+    format_func=fmt_time,
 )
 
 if st.button("Search"):
@@ -63,7 +67,7 @@ if st.button("Search"):
             days, begin, end, when = [], None, None, "Not scheduled"
         else:
             days, begin, end = info
-            when = f"{'/'.join(days)} {fmt_time(begin)}–{fmt_time(end)}"
+            when = f"{'/'.join(days)} {fmt_time(begin)}-{fmt_time(end)}"
 
         if wanted and not any(d in wanted for d in days):
             continue
@@ -81,10 +85,28 @@ if st.button("Search"):
             "Room": location(section),
         })
 
-    if not sections:
+    # Streamlit reruns this whole script on every click, so results have to be
+    # stashed here or they vanish the moment any other button is pressed.
+    st.session_state["rows"] = rows
+    st.session_state["found_any"] = bool(sections)
+    st.session_state["label"] = f"{subject} {number}"
+
+rows = st.session_state.get("rows")
+
+if rows is not None:
+    if not st.session_state["found_any"]:
         st.warning("No sections found for that course.")
     elif not rows:
         st.info("No sections match those filters.")
     else:
         st.dataframe(rows, width="stretch")
         st.link_button("Open registration", REGISTER_URL)
+
+        if st.button("Send to Discord"):
+            lines = [
+                f"{r['Course']} CRN {r['CRN']}: "
+                f"{r['Open seats']} open - {r['Meets']}"
+                for r in rows
+            ]
+            notify(f"**{st.session_state['label']}**\n" + "\n".join(lines))
+            st.success("Sent.")
