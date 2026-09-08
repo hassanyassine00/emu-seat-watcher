@@ -3,7 +3,6 @@
 import streamlit as st
 
 from watcher import (
-    notify,
     make_session,
     fetch_sections,
     open_seats,
@@ -89,7 +88,6 @@ if st.button("Search"):
     # stashed here or they vanish the moment any other button is pressed.
     st.session_state["rows"] = rows
     st.session_state["found_any"] = bool(sections)
-    st.session_state["label"] = f"{subject} {number}"
 
 rows = st.session_state.get("rows")
 
@@ -102,11 +100,4 @@ if rows is not None:
         st.dataframe(rows, width="stretch")
         st.link_button("Open registration", REGISTER_URL)
 
-        if st.button("Send to Discord"):
-            lines = [
-                f"{r['Course']} CRN {r['CRN']}: "
-                f"{r['Open seats']} open - {r['Meets']}"
-                for r in rows
-            ]
-            notify(f"**{st.session_state['label']}**\n" + "\n".join(lines))
-            st.success("Sent.")
+       
